@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Channels</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/telegrand@0.1.0/dist/telegrand.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center mb-6">Telegram Kanallaringiz</h1>
+        
+        <!-- Input form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="mb-4">
+                <label class="block text-gray-700">API ID</label>
+                <input id="apiId" type="text" placeholder="API ID kiriting" class="w-full p-2 border rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700">API Hash</label>
+                <input id="apiHash" type="text" placeholder="API Hash kiriting" class="w-full p-2 border rounded">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700">Telefon raqami</label>
+                <input id="phoneNumber" type="text" placeholder="+998901234567" class="w-full p-2 border rounded">
+            </div>
+            <button id="fetchChannels" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Kanallarni olish</button>
+        </div>
+
+        <!-- Channels list -->
+        <div id="channelsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <script>
+        const channelsList = document.getElementById('channelsList');
+        const fetchChannelsBtn = document.getElementById('fetchChannels');
+
+        async function fetchChannels() {
+            const apiId = document.getElementById('apiId').value;
+            const apiHash = document.getElementById('apiHash').value;
+            const phoneNumber = document.getElementById('phoneNumber').value;
+
+            if (!apiId || !apiHash || !phoneNumber) {
+                alert('Iltimos, barcha maydonlarni to\'ldiring!');
+                return;
+            }
+
+            // Initialize Telegrand client
+            const client = new Telegrand({
+                apiId: parseInt(apiId),
+                apiHash: apiHash,
+                storage: new Telegrand.LocalStorage(),
+            });
+
+            try {
+                // Start authentication
+                await client.start({
+                    phoneNumber: phoneNumber,
+                    phoneCode: async () => prompt('SMS kodni kiriting:'),
+                    onError: (err) => {
+                        console.error(err);
+                        alert('Xato yuz berdi: ' + err.message);
+                    },
+                });
+
+                channelsList.innerHTML = '<p class="text-center">Yuklanmoqda...</p>';
+
+                // Fetch dialogs (channels, groups, etc.)
+                const dialogs = await client.getDialogs();
+                channelsList.innerHTML = '';
+
+                dialogs.forEach(dialog => {
+                    if (dialog.isChannel) {
+                        const channelCard = `
+                            <div class="bg-white p-4 rounded-lg shadow-md">
+                                <h2 class="text-xl font-semibold">${dialog.title}</h2>
+                                <p class="text-gray-600">ID: ${dialog.id}</p>
+                                <p class="text-gray-600">Username: ${dialog.entity.username || 'Yo\'q'}</p>
+                            </div>
+                        `;
+                        channelsList.innerHTML += channelCard;
+                    }
+                });
+
+                if (!channelsList.innerHTML) {
+                    channelsList.innerHTML = '<p class="text-center text-gray-500">Kanal topilmadi.</p>';
+                }
+
+                // Disconnect client after fetching
+                await client.disconnect();
+            } catch (err) {
+                console.error(err);
+                alert('Xato: ' + err.message);
+            }
+        }
+
+        fetchChannelsBtn.addEventListener('click', fetchChannels);
+    </script>
+</body>
+</html>
